@@ -1,49 +1,44 @@
-name: Databricks CI/CD
+# This workflow validates, deploys, and runs the specified bundle
+# within a production target named "prod".
+name: 'Production deployment'
 
+# Ensure that only a single job or workflow using the same concurrency group
+# runs at a time.
+concurrency: 1
+
+# Trigger this workflow whenever a pull request is pushed to the repo's
+# main branch.
 on:
   push:
     branches:
-      - dev
-      - qa
       - prod
+      - dev
+    paths:
+      - 'Databricks-Phase-II-Assessment/**'
 
 jobs:
   deploy:
+    name: 'Deploy bundle'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+      # Check out this repo, so that this workflow can access it.
+      - uses: actions/checkout@v3
 
-      - name: Install Databricks CLI
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-          echo "$HOME/.databricks/bin" >> $GITHUB_PATH
+      # Download the Databricks CLI.
+      # See https://github.com/databricks/setup-cli
+      - uses: databricks/setup-cli@main
 
-      - name: Verify CLI
-        run: |
-            which databricks
-            databricks --version
-            
-      - name: Set Environment Variables
-        run: |
-          echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}" >> $GITHUB_ENV
-          echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}" >> $GITHUB_ENV
-
-      - name: Test Databricks Auth
-        run: databricks current-user me
-
-      - name: Validate Bundle
-        run: databricks bundle validate
-
-      - name: Deploy to Dev
-        if: github.ref == 'refs/heads/dev'
-        run: databricks bundle deploy --target dev
-
-      - name: Deploy to qa
-        if: github.ref == 'refs/heads/qa'
-        run: databricks bundle deploy --target qa
-
-      - name: Deploy to Prod
-        if: github.ref == 'refs/heads/prod'
-        run: databricks bundle deploy --target prod
+      # Deploy the bundle to the "prod" target as defined
+      # in the bundle's settings file.
+      - run: databricks bundle deploy
+        working-directory: Prod_Assessment
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.HOSTTOKEN }}
+          DATABRICKS_BUNDLE_ENV: prod
+          
+      - run: databricks bundle deploy
+        working-directory: dev_Assessment
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.HOSTTOKEN }}
+          DATABRICKS_BUNDLE_ENV: dev
