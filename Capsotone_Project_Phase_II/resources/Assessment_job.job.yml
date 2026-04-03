@@ -2,8 +2,8 @@
 
 resources:
   jobs:
-    sample_job:
-      name: sample_job
+    Assessment_job:
+      name: Assessment_job
 
       trigger:
         # Run this job every day, exactly one day from the last run; see https://docs.databricks.com/api/workspace/jobs/create#trigger
@@ -18,13 +18,21 @@ resources:
       parameters:
         - name: catalog
           default: ${var.catalog}
-        - name: schema
-          default: ${var.schema}
 
       tasks:
-        - task_key: notebook_task
+        - task_key: Bronze
           notebook_task:
-            notebook_path: ../src/sample_notebook.ipynb
+            notebook_path: ../src/Bronze.ipynb
+        - task_key: silver
+          depends_on:
+            - task_key: Bronze
+          notebook_task:
+            notebook_path: ../src/Silver.ipynb
+        - task_key: Gold
+          depends_on:
+            - task_key: silver
+          notebook_task:
+            notebook_path: ../src/Gold.ipynb
 
       environments:
         - environment_key: default
