@@ -1,0 +1,49 @@
+name: Databricks CI/CD
+
+on:
+  push:
+    branches:
+      - dev
+      - qa
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          echo "$HOME/.databricks/bin" >> $GITHUB_PATH
+
+      - name: Verify CLI
+        run: |
+            which databricks
+            databricks --version
+            
+      - name: Set Environment Variables
+        run: |
+          echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST }}" >> $GITHUB_ENV
+          echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Test Databricks Auth
+        run: databricks current-user me
+
+      - name: Validate Bundle
+        run: databricks bundle validate
+
+      - name: Deploy to Dev
+        if: github.ref == 'refs/heads/dev'
+        run: databricks bundle deploy --target dev
+
+      - name: Deploy to qa
+        if: github.ref == 'refs/heads/qa'
+        run: databricks bundle deploy --target qa
+
+      - name: Deploy to Prod
+        if: github.ref == 'refs/heads/prod'
+        run: databricks bundle deploy --target prod
